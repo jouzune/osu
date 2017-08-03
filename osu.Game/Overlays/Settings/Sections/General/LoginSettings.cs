@@ -26,7 +26,7 @@ namespace osu.Game.Overlays.Settings.Sections.General
     public class LoginSettings : FillFlowContainer, IOnlineComponent
     {
         private bool bounding = true;
-        private LoginForm form;
+        private FillFlowContainer form;
         private OsuColour colours;
 
         private UserPanel panel;
@@ -74,6 +74,18 @@ namespace osu.Game.Overlays.Settings.Sections.General
 
             switch (state)
             {
+                case APIState.Registering:
+                    Children = new Drawable[]
+                    {
+                        new OsuSpriteText
+                        {
+                            Text = "REGISTER",
+                            Margin = new MarginPadding { Bottom = 5 },
+                            Font = @"Exo2.0-Black",
+                        },
+                        form = new RegisterForm()
+                    };
+                    break;
                 case APIState.Offline:
                     Children = new Drawable[]
                     {
@@ -187,6 +199,80 @@ namespace osu.Game.Overlays.Settings.Sections.General
             base.OnFocus(state);
         }
 
+        private class RegisterForm : FillFlowContainer
+        {
+            private TextBox username;
+            private TextBox password;
+            private TextBox email;
+            private APIAccess api;
+            private InputManager inputManager;
+
+            private void performRegister()
+            {
+                if (!string.IsNullOrEmpty(username.Text) && !string.IsNullOrEmpty(password.Text) && !string.IsNullOrEmpty(email.Text))
+                    api.RegisterAccount(username.Text, password.Text, email.Text);
+            }
+
+            private void changeToLogin()
+            {
+                api.State = APIState.Offline;
+            }
+
+            [BackgroundDependencyLoader(permitNulls: true)]
+            private void load(APIAccess api, OsuConfigManager config, UserInputManager inputManager)
+            {
+                this.inputManager = inputManager;
+                this.api = api;
+                Direction = FillDirection.Vertical;
+                Spacing = new Vector2(0, 5);
+                AutoSizeAxes = Axes.Y;
+                RelativeSizeAxes = Axes.X;
+                Children = new Drawable[]
+                {
+                    username = new OsuTextBox
+                    {
+                        PlaceholderText = "Username",
+                        RelativeSizeAxes = Axes.X,
+                        TabbableContentContainer = this
+                    },
+                    email = new OsuTextBox
+                    {
+                        PlaceholderText = "Email",
+                        RelativeSizeAxes = Axes.X,
+                        TabbableContentContainer = this
+                    },
+                    password = new OsuPasswordTextBox
+                    {
+                        PlaceholderText = "Password",
+                        RelativeSizeAxes = Axes.X,
+                        TabbableContentContainer = this,
+                        OnCommit = (sender, newText) => performRegister()
+                    },
+                    new OsuButton
+                    {
+                        RelativeSizeAxes = Axes.X,
+                        Text = "Register",
+                        Action = performRegister
+                    },
+                    new OsuButton
+                    {
+                        RelativeSizeAxes = Axes.X,
+                        Text = "Sign in",
+                        Action = changeToLogin
+                    }
+                };
+            }
+
+            public override bool AcceptsFocus => true;
+
+            protected override bool OnClick(InputState state) => true;
+
+            protected override void OnFocus(InputState state)
+            {
+                Schedule(() => { inputManager.ChangeFocus(string.IsNullOrEmpty(username.Text) ? username : password); });
+            }
+        }
+
         private class LoginForm : FillFlowContainer
         {
             private TextBox username;
@@ -198,6 +284,11 @@ namespace osu.Game.Overlays.Settings.Sections.General
             {
                 if (!string.IsNullOrEmpty(username.Text) && !string.IsNullOrEmpty(password.Text))
                     api.Login(username.Text, password.Text);
+            }
+
+            private void changeToRegister()
+            {
+                api.State = APIState.Registering;
             }
 
             [BackgroundDependencyLoader(permitNulls: true)]
@@ -246,6 +337,7 @@ namespace osu.Game.Overlays.Settings.Sections.General
                         RelativeSizeAxes = Axes.X,
                         Text = "Register new account",
                         //Action = registerLink
+                        Action = changeToRegister
                     }
                 };
             }

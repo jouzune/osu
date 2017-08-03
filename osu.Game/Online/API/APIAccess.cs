@@ -34,6 +34,8 @@ namespace osu.Game.Online.API
 
         public string Password;
 
+        public string Email;
+
         public Bindable<User> LocalUser = new Bindable<User>(createGuestUser());
 
         public string Token
@@ -43,6 +45,7 @@ namespace osu.Game.Online.API
         }
 
         protected bool HasLogin => Token != null || !string.IsNullOrEmpty(Username) && !string.IsNullOrEmpty(Password);
+        protected bool HasRegister => !string.IsNullOrEmpty(Username) && !string.IsNullOrEmpty(Password) && !string.IsNullOrEmpty(Email);
 
         // ReSharper disable once PrivateFieldCanBeConvertedToLocalVariable (should dispose of this or at very least keep a reference).
         private readonly Thread thread;
@@ -138,12 +141,19 @@ namespace osu.Game.Online.API
                             continue;
                         }
                         break;
+                    case APIState.Registering:
+                        if (HasRegister)
+                        {
+                            state = APIState.Offline;
+                        }
+                        break;
                 }
 
                 //hard bail if we can't get a valid access token.
                 if (authentication.RequestAccessToken() == null)
                 {
-                    State = APIState.Offline;
+                    if(state != APIState.Registering)
+                        State = APIState.Offline;
                     continue;
                 }
 
@@ -176,6 +186,16 @@ namespace osu.Game.Online.API
             Password = password;
 
             State = APIState.Connecting;
+        }
+        public void RegisterAccount(string username, string password, string email)
+        {
+            Debug.Assert(State == APIState.Registering);
+
+            Username = username;
+            Password = password;
+            Email = email;
+
+            State = APIState.Registering;
         }
 
         /// <summary>
@@ -332,6 +352,11 @@ namespace osu.Game.Online.API
         /// <summary>
         /// We are online.
         /// </summary>
-        Online
+        Online,
+
+        /// <summary>
+        /// We are in the process of registering.
+        /// </summary>
+        Registering
     }
 }
