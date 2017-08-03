@@ -144,6 +144,8 @@ namespace osu.Game.Online.API
                     case APIState.Registering:
                         if (HasRegister)
                         {
+
+
                             state = APIState.Offline;
                         }
                         break;
