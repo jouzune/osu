@@ -204,18 +204,85 @@ namespace osu.Game.Overlays.Settings.Sections.General
             private TextBox username;
             private TextBox password;
             private TextBox email;
+            private OsuSpriteText usernameErrMsg;
+            private OsuSpriteText emailErrMsg;
+            private OsuSpriteText passwordErrMsg;
             private APIAccess api;
             private InputManager inputManager;
 
 
             private void OnUsernameErrorMessage(string message)
             {
+                if (string.IsNullOrEmpty(message))
+                {
+                    usernameErrMsg.Hide();
+                }
+                else
+                {
+                    usernameErrMsg.Show();
+                }
+                usernameErrMsg.Text = message;
+            }
+            private void OnEmailErrorMessage(string message)
+            {
+                if (string.IsNullOrEmpty(message))
+                {
+                    emailErrMsg.Hide();
+                }
+                else
+                {
+                    emailErrMsg.Show();
+                }
+                emailErrMsg.Text = message;
+            }
+            private void OnPasswordErrorMessage(string message)
+            {
+                if (string.IsNullOrEmpty(message))
+                {
+                    passwordErrMsg.Hide();
+                }
+                else
+                {
+                    passwordErrMsg.Show();
+                }
+                passwordErrMsg.Text = message;
             }
 
             private void performRegister()
             {
-                if (!string.IsNullOrEmpty(username.Text) && !string.IsNullOrEmpty(password.Text) && !string.IsNullOrEmpty(email.Text))
+                bool hasUsername = !string.IsNullOrEmpty(username.Text);
+                bool hasEmail = !string.IsNullOrEmpty(email.Text);
+                bool hasPassword = !string.IsNullOrEmpty(password.Text);
+
+
+                if (hasUsername)
+                {
+                    OnUsernameErrorMessage("");
+                }
+                else
+                {
+                    OnUsernameErrorMessage("Input a username.");
+                }
+                if (hasEmail)
+                {
+                    OnEmailErrorMessage("");
+                }
+                else
+                {
+                    OnEmailErrorMessage("Input an email.");
+                }
+                if (hasPassword)
+                {
+                    OnPasswordErrorMessage("");
+                }
+                else
+                {
+                    OnPasswordErrorMessage("Input a password.");
+                }
+                if (hasUsername && hasEmail && hasPassword)
+                {
                     api.RegisterAccount(username.Text, password.Text, email.Text);
+                }
             }
 
             private void changeToLogin()
@@ -228,6 +295,9 @@ namespace osu.Game.Overlays.Settings.Sections.General
             {
                 this.inputManager = inputManager;
                 this.api = api;
+                api.RegisterInvalidUserName += OnUsernameErrorMessage;
+                api.RegisterInvalidEmail += OnEmailErrorMessage;
+                api.RegisterInvalidPassword += OnPasswordErrorMessage;
                 Direction = FillDirection.Vertical;
                 Spacing = new Vector2(0, 5);
                 AutoSizeAxes = Axes.Y;
@@ -253,6 +323,24 @@ namespace osu.Game.Overlays.Settings.Sections.General
                         TabbableContentContainer = this,
                         OnCommit = (sender, newText) => performRegister()
                     },
+                    usernameErrMsg = new OsuSpriteText
+                    {
+                            Text = "",
+                            Margin = new MarginPadding { Bottom = 5 },
+                            Font = @"Exo2.0-Black",
+                    },
+                    emailErrMsg = new OsuSpriteText
+                    {
+                            Text = "",
+                            Margin = new MarginPadding { Bottom = 5 },
+                            Font = @"Exo2.0-Black",
+                    },
+                    passwordErrMsg = new OsuSpriteText
+                    {
+                            Text = "",
+                            Margin = new MarginPadding { Bottom = 5 },
+                            Font = @"Exo2.0-Black",
+                    },
                     new OsuButton
                     {
                         RelativeSizeAxes = Axes.X,
@@ -266,6 +354,7 @@ namespace osu.Game.Overlays.Settings.Sections.General
                         Action = changeToLogin
                     }
                 };
+
             }
 
             public override bool AcceptsFocus => true;
