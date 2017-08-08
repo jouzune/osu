@@ -159,9 +159,50 @@ namespace osu.Game.Online.API
                             }
                         }
 
-                        //if (HasRegister)
-                        //{
-                        //}
+                        if (HasRegister)
+                        {
+                            var isValidUserName = IsValidUserName(Username);
+                            if (!isValidUserName.Item2)
+                            {
+                                Logger.Log("Invalid user name entered.", LoggingTarget.Network);
+                                Username = "";
+                                RegisterInvalidUserName?.Invoke(isValidUserName.Item1);
+                            }
+
+                            var isValidPassword = IsValidPassword(Password);
+                            if (!isValidPassword.Item2)
+                            {
+                                Logger.Log("Invalid password entered.", LoggingTarget.Network);
+                                Password = "";
+                                RegisterInvalidPassword?.Invoke(isValidPassword.Item1);
+                            }
+
+                            var isValidEmail = IsValidEmail(Email);
+                            if (!isValidEmail.Item2)
+                            {
+                                Logger.Log("Invalid email entered.", LoggingTarget.Network);
+                                Email = "";
+                                RegisterInvalidEmail?.Invoke(isValidEmail.Item1);
+                            }
+
+                            if (HasRegister)
+                            {
+                                if (RegisterUser(Username, Password, Email))
+                                {
+                                    Logger.Log("Successfully registered user.", LoggingTarget.Network);
+                                    state = APIState.Offline;
+                                }
+                                else
+                                {
+                                    state = APIState.Failing;
+                                    Logger.Log($"Failed to access {Endpoint}/p/register", LoggingTarget.Network);
+                                }
+                            }
+                        }
+                        else
+                        {
+                            Thread.Sleep(500);
+                        }
                         break;
                 }
 
@@ -196,10 +237,7 @@ namespace osu.Game.Online.API
             * and the 'v' form parameter
             * for authentication
             */
-            var url = $"{Endpoint}/p/register";
-            var registerRequest = new Framework.IO.Network.WebRequest(url);
-            registerRequest.Method = HttpMethod.GET;
-            registerRequest.ContentType = "text/html";
+            var registerRequest = GetRegisterRequest(HttpMethod.GET, "text/html");
             registerRequest.BlockingPerform();
 
             phpsessid = "";
@@ -230,11 +268,116 @@ namespace osu.Game.Online.API
             }
             return false;
         }
+        
+        private Framework.IO.Network.WebRequest GetRegisterRequest(HttpMethod method, string contentType)
+        {
+            var url = $"{Endpoint}/p/register";
+            var registerRequest = new Framework.IO.Network.WebRequest(url);
+            registerRequest.Method = method;
+            registerRequest.ContentType = contentType;
+
+            if (method == HttpMethod.POST)
+            {
+                registerRequest.AddHeader("Cookie", $"PHPSESSID={PHPSESSID}");
+                registerRequest.AddParameter("v", FormGUID);
+            }
+
+            return registerRequest;
+        }
+
+        private Tuple<string, bool> IsValidUserName(string userName)
+        {
+            var request = GetRegisterRequest(HttpMethod.POST, "application/x-www-form-urlencoded");
+            request.AddParameter("check", "username");
+            request.AddParameter("value", userName);
+
+            request.BlockingPerform();
+
+            if (request.Completed)
+            {
+                string msg = request.ResponseString;
+                bool isValid = msg.Length == 0;
+                return Tuple.Create(isValid ? "" : msg, isValid);
+            }
+            else
+            {
+                state = APIState.Failing;
+                Logger.Log($"Failed to access {Endpoint}/p/register", LoggingTarget.Network);
+            }
+
+            return Tuple.Create("", false);
+        }
+
+        private Tuple<string, bool> IsValidPassword(string password)
+        {
+            var request = GetRegisterRequest(HttpMethod.POST, "application/x-www-form-urlencoded");
+            request.AddParameter("check", "password");
+            request.AddParameter("value", password);
+
+            request.BlockingPerform();
+
+            if (request.Completed)
+            {
+                string msg = request.ResponseString;
+                bool isValid = msg.Length == 0;
+                return Tuple.Create(isValid ? "" : msg, isValid);
+            }
+            else
+            {
+                state = APIState.Failing;
+                Logger.Log($"Failed to access {Endpoint}/p/register", LoggingTarget.Network);
+            }
+
+            return Tuple.Create("", false);
+        }
+
+        private Tuple<string, bool> IsValidEmail(string email)
+        {
+            var request = GetRegisterRequest(HttpMethod.POST, "application/x-www-form-urlencoded");
+            request.AddParameter("check", "email");
+            request.AddParameter("value", email);
+
+            request.BlockingPerform();
+
+            if (request.Completed)
+            {
+                string msg = request.ResponseString;
+                bool isValid = msg.Length == 0;
+                int indexOf = msg.IndexOf("<a");
+                if (indexOf > -1)
+                {
+                    msg = msg.Substring(0, indexOf);
+                }
+                return Tuple.Create(isValid ? "" : msg, isValid);
+            }
+            else
+            {
+                state = APIState.Failing;
+                Logger.Log($"Failed to access {Endpoint}/p/register", LoggingTarget.Network);
+            }
+
+            return Tuple.Create("", false);
+        }
+
+        private bool RegisterUser(string userName, string password, string email)
+        {
+            var registerRequest = GetRegisterRequest(HttpMethod.POST, "*/*");
+            registerRequest.AddParameter("username", userName);
+            registerRequest.AddParameter("email", email);
+            registerRequest.AddParameter("password", password);
+
+            registerRequest.BlockingPerform();
+
+            if (registerRequest.Completed)
+            {
+                return true;
+            }
+            return false;
+        }
 
         public event Action<string> RegisterInvalidUserName;
         public event Action<string> RegisterInvalidPassword;
         public event Action<string> RegisterInvalidEmail;
-        public event Action UserRegistered;
 
 
         private void clearCredentials()
