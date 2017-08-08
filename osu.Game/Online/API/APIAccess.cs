@@ -6,9 +6,11 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Net;
+using System.Text.RegularExpressions;
 using System.Threading;
 using osu.Framework;
 using osu.Framework.Configuration;
+using osu.Framework.IO.Network;
 using osu.Framework.Logging;
 using osu.Framework.Threading;
 using osu.Game.Online.API.Requests;
@@ -38,14 +40,16 @@ namespace osu.Game.Online.API
 
         public Bindable<User> LocalUser = new Bindable<User>(createGuestUser());
 
-        public string Token
-        {
+        public string Token {
             get { return authentication.Token?.ToString(); }
             set { authentication.Token = string.IsNullOrEmpty(value) ? null : OAuthToken.Parse(value); }
         }
 
         protected bool HasLogin => Token != null || !string.IsNullOrEmpty(Username) && !string.IsNullOrEmpty(Password);
         protected bool HasRegister => !string.IsNullOrEmpty(Username) && !string.IsNullOrEmpty(Password) && !string.IsNullOrEmpty(Email);
+
+        protected string FormGUID, PHPSESSID;
+        protected bool HasRegisterSession => !string.IsNullOrEmpty(FormGUID) && !string.IsNullOrEmpty(PHPSESSID);
 
         // ReSharper disable once PrivateFieldCanBeConvertedToLocalVariable (should dispose of this or at very least keep a reference).
         private readonly Thread thread;
@@ -65,8 +69,7 @@ namespace osu.Game.Online.API
 
         public void Register(IOnlineComponent component)
         {
-            Scheduler.Add(delegate
-            {
+            Scheduler.Add(delegate {
                 components.Add(component);
                 component.APIStateChanged(this, state);
             });
@@ -74,8 +77,7 @@ namespace osu.Game.Online.API
 
         public void Unregister(IOnlineComponent component)
         {
-            Scheduler.Add(delegate
-            {
+            Scheduler.Add(delegate {
                 components.Remove(component);
             });
         }
@@ -142,19 +144,31 @@ namespace osu.Game.Online.API
                         }
                         break;
                     case APIState.Registering:
-                        if (HasRegister)
+                        if (!HasRegisterSession)
                         {
-
-
-                            state = APIState.Offline;
+                            string phpsessid, guid;
+                            if (TryGetRegisterSession(out phpsessid, out guid))
+                            {
+                                PHPSESSID = phpsessid;
+                                FormGUID = guid;
+                            }
+                            else
+                            {
+                                state = APIState.Failing;
+                                Logger.Log($"Failed to access {Endpoint}/p/register", LoggingTarget.Network);
+                            }
                         }
+
+                        //if (HasRegister)
+                        //{
+                        //}
                         break;
                 }
 
                 //hard bail if we can't get a valid access token.
                 if (authentication.RequestAccessToken() == null)
                 {
-                    if(state != APIState.Registering)
+                    if (state != APIState.Registering)
                         State = APIState.Offline;
                     continue;
                 }
@@ -173,6 +187,55 @@ namespace osu.Game.Online.API
                 Thread.Sleep(1);
             }
         }
+
+        private bool TryGetRegisterSession(out string phpsessid, out string guid)
+        {
+            /*
+            * GET /p/ register
+            * We need the PHPSESSID cookie
+            * and the 'v' form parameter
+            * for authentication
+            */
+            var url = $"{Endpoint}/p/register";
+            var registerRequest = new Framework.IO.Network.WebRequest(url);
+            registerRequest.Method = HttpMethod.GET;
+            registerRequest.ContentType = "text/html";
+            registerRequest.BlockingPerform();
+
+            phpsessid = "";
+            guid = "";
+            if (registerRequest.Completed)
+            {
+                // get the value of PHPSESSID cookie
+                string setCookie = registerRequest.ResponseHeaders.Get("Set-Cookie");
+                var setCookies = setCookie.Split(';');
+                foreach (string cookie in setCookies)
+                {
+                    if (cookie.Contains("PHPSESSID"))
+                    {
+                        int indexOfEqual = cookie.IndexOf('=');
+                        phpsessid = cookie.Substring(indexOfEqual + 1); // don't grab the =
+                    }
+                }
+
+                // get the form value of hidden input 'v'
+                string responseBody = registerRequest.ResponseString;
+                string pattern = "type=[\"']hidden[\"']\\s+name=[\"']v[\"']\\s+value=[\"'](.+)[\"']";
+                var match = Regex.Match(responseBody, pattern);
+                if (match.Success)
+                {
+                    guid = match.Groups[1].Value;
+                }
+                return true;
+            }
+            return false;
+        }
+
+        public event Action<string> RegisterInvalidUserName;
+        public event Action<string> RegisterInvalidPassword;
+        public event Action<string> RegisterInvalidEmail;
+        public event Action UserRegistered;
+
 
         private void clearCredentials()
         {
@@ -196,8 +259,6 @@ namespace osu.Game.Online.API
             Username = username;
             Password = password;
             Email = email;
-
-            State = APIState.Registering;
         }
 
         /// <summary>
@@ -254,11 +315,9 @@ namespace osu.Game.Online.API
         }
 
         private APIState state;
-        public APIState State
-        {
+        public APIState State {
             get { return state; }
-            set
-            {
+            set {
                 APIState oldState = state;
                 APIState newState = value;
 
@@ -278,8 +337,7 @@ namespace osu.Game.Online.API
                     {
                         //NotificationOverlay.ShowMessage($@"We just went {newState}!", newState == APIState.Online ? Color4.YellowGreen : Color4.OrangeRed, 5000);
                         log.Add($@"We just went {newState}!");
-                        Scheduler.Add(delegate
-                        {
+                        Scheduler.Add(delegate {
                             components.ForEach(c => c.APIStateChanged(this, newState));
                             OnStateChange?.Invoke(oldState, newState);
                         });
@@ -322,8 +380,7 @@ namespace osu.Game.Online.API
             LocalUser.Value = createGuestUser();
         }
 
-        private static User createGuestUser() => new User
-        {
+        private static User createGuestUser() => new User {
             Username = @"Guest",
             Id = 1,
         };
