@@ -196,8 +196,6 @@ namespace osu.Game.Online.API
             Username = username;
             Password = password;
             Email = email;
-
-            State = APIState.Registering;
         }
 
         /// <summary>

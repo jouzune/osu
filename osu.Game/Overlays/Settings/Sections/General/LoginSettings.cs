@@ -207,6 +207,11 @@ namespace osu.Game.Overlays.Settings.Sections.General
             private APIAccess api;
             private InputManager inputManager;
 
+
+            private void OnUsernameErrorMessage(string message)
+            {
+            }
+
             private void performRegister()
             {
                 if (!string.IsNullOrEmpty(username.Text) && !string.IsNullOrEmpty(password.Text) && !string.IsNullOrEmpty(email.Text))
