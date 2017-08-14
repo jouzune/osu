@@ -13,9 +13,114 @@ namespace osu.Game.Tests.Online
     {
         private static readonly string endpoint = @"https://osu.ppy.sh";
         [Test]
-        void RegisterSession()
+        public void RegisterSession()
         {
             var api = new RegisterAPI(endpoint);
         }
+
+        [Test]
+        public void BadPassword()
+        {
+            var api = new RegisterAPI(endpoint);
+            string phpsessid;
+            string guid;
+            string cfduid;
+            api.TryGetRegisterSession(out phpsessid, out guid, out cfduid);
+            var tuple = api.IsValidPassword("world");
+            Assert.IsFalse(tuple.Item2);
+        }
+
+        [Test]
+        public void GoodPassword()
+        {
+            var api = new RegisterAPI(endpoint);
+            string phpsessid;
+            string guid;
+            string cfduid;
+            api.TryGetRegisterSession(out phpsessid, out guid, out cfduid);
+            var tuple = api.IsValidPassword("world123456");
+            Assert.IsTrue(tuple.Item2);
+        }
+
+        [Test]
+        public void TakenUsername()
+        {
+            var api = new RegisterAPI(endpoint);
+            string phpsessid;
+            string guid;
+            string cfduid;
+            api.TryGetRegisterSession(out phpsessid, out guid, out cfduid);
+            var tuple = api.IsValidUserName("hello");
+            Assert.AreEqual("This username is already taken!", tuple.Item1);
+            Assert.IsFalse(tuple.Item2);
+        }
+
+        [Test]
+        public void BadUsername()
+        {
+            var api = new RegisterAPI(endpoint);
+            string phpsessid;
+            string guid;
+            string cfduid;
+            api.TryGetRegisterSession(out phpsessid, out guid, out cfduid);
+            var tuple = api.IsValidUserName("h");
+            Assert.AreEqual("The requested username is too short.", tuple.Item1);
+            Assert.IsFalse(tuple.Item2);
+
+        }
+
+        [Test]
+        public void GoodUsername()
+        {
+            var api = new RegisterAPI(endpoint);
+            string phpsessid;
+            string guid;
+            string cfduid;
+            api.TryGetRegisterSession(out phpsessid, out guid, out cfduid);
+            var tuple = api.IsValidUserName("ntestacc123");
+            Assert.IsTrue(tuple.Item2);
+        }
+
+        [Test]
+        public void TakenEmail()
+        {
+            var api = new RegisterAPI(endpoint);
+            string phpsessid;
+            string guid;
+            string cfduid;
+            api.TryGetRegisterSession(out phpsessid, out guid, out cfduid);
+            var tuple = api.IsValidEmail("lunarnublet@gmail.com");
+            Assert.AreEqual("The email address is already in use. ", tuple.Item1);
+            Assert.IsFalse(tuple.Item2);
+
+        }
+
+        [Test]
+        public void BadEmail()
+        {
+            var api = new RegisterAPI(endpoint);
+            string phpsessid;
+            string guid;
+            string cfduid;
+            api.TryGetRegisterSession(out phpsessid, out guid, out cfduid);
+            var tuple = api.IsValidEmail("asdf");
+            Assert.AreEqual("Invalid email address.", tuple.Item1);
+            Assert.IsFalse(tuple.Item2);
+
+        }
+
+        [Test]
+        public void GoodEmail()
+        {
+            var api = new RegisterAPI(endpoint);
+            string phpsessid;
+            string guid;
+            string cfduid;
+            api.TryGetRegisterSession(out phpsessid, out guid, out cfduid);
+            var tuple = api.IsValidEmail("ntestacc123@gmail.com");
+            Assert.IsTrue(tuple.Item2);
+        }
+
+
     }
 }
