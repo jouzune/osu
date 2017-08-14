@@ -16,6 +16,11 @@ namespace osu.Game.Tests.Online
         public void RegisterSession()
         {
             var api = new RegisterAPI(endpoint);
+            string phpsessid;
+            string guid;
+            string cfduid;
+            bool session = api.TryGetRegisterSession(out phpsessid, out guid, out cfduid);
+            Assert.IsTrue(session);
         }
 
         [Test]
