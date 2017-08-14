@@ -94,6 +94,7 @@
     <Compile Include="Graphics\UserInterface\OsuContextMenuItem.cs" />
     <Compile Include="IO\FileStore.cs" />
     <Compile Include="IO\FileInfo.cs" />
+    <Compile Include="Online\API\Register\RegisterAPI.cs" />
     <Compile Include="Online\API\Requests\GetUsersRequest.cs" />
     <Compile Include="Online\API\Requests\PostMessageRequest.cs" />
     <Compile Include="Online\Chat\ErrorMessage.cs" />

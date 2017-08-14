@@ -86,6 +86,18 @@ namespace osu.Game.Overlays.Settings.Sections.General
                         form = new RegisterForm()
                     };
                     break;
+                case APIState.VerifyingAccount:
+                    Children = new Drawable[]
+                    {
+                        new OsuSpriteText
+                        {
+                            Text = "VERIFY ACCOUNT",
+                            Margin = new MarginPadding { Bottom = 5 },
+                            Font = @"Exo2.0-Black",
+                        },
+                        form = new VerifyEmailForm()
+                    };
+                    break;
                 case APIState.Offline:
                     Children = new Drawable[]
                     {
@@ -364,6 +376,87 @@ namespace osu.Game.Overlays.Settings.Sections.General
             protected override void OnFocus(InputState state)
             {
                 Schedule(() => { inputManager.ChangeFocus(string.IsNullOrEmpty(username.Text) ? username : password); });
+            }
+        }
+
+        private class VerifyEmailForm : FillFlowContainer
+        {
+            private TextBox verificationCode;
+            private OsuSpriteText errMessage;
+            private APIAccess api;
+            private InputManager inputManager;
+
+            private void onInvalidVerificationCode(string msg)
+            {
+                errMessage.Text = msg;
+            }
+
+            private void performVerification()
+            {
+                bool hasVerificationCode = !string.IsNullOrEmpty(verificationCode.Text);
+
+                if (!hasVerificationCode)
+                {
+                    onInvalidVerificationCode("Input verification code");
+                }
+                else
+                {
+                    api.VerifyEmail(verificationCode.Text);
+                }
+            }
+
+            private void changeToLogin()
+            {
+                api.State = APIState.Offline;
+            }
+
+            [BackgroundDependencyLoader(permitNulls: true)]
+            private void load(APIAccess api, OsuConfigManager config, UserInputManager inputManager)
+            {
+                this.inputManager = inputManager;
+                this.api = api;
+                api.InvalidVerificationCode += onInvalidVerificationCode;
+                Direction = FillDirection.Vertical;
+                Spacing = new Vector2(0, 5);
+                AutoSizeAxes = Axes.Y;
+                RelativeSizeAxes = Axes.X;
+                Children = new Drawable[]
+                {
+                    verificationCode = new OsuTextBox
+                    {
+                        PlaceholderText = "Code",
+                        RelativeSizeAxes = Axes.X,
+                        TabbableContentContainer = this
+                    },
+                    errMessage = new OsuSpriteText
+                    {
+                            Text = "",
+                            Margin = new MarginPadding { Bottom = 5 },
+                            Font = @"Exo2.0-Black",
+                    },
+                    new OsuButton
+                    {
+                        RelativeSizeAxes = Axes.X,
+                        Text = "Verify",
+                        Action = performVerification
+                    },
+                    new OsuButton
+                    {
+                        RelativeSizeAxes = Axes.X,
+                        Text = "Sign in",
+                        Action = changeToLogin
+                    }
+                };
+
+            }
+
+            public override bool AcceptsFocus => true;
+
+            protected override bool OnClick(InputState state) => true;
+
+            protected override void OnFocus(InputState state)
+            {
+                Schedule(() => { inputManager.ChangeFocus(verificationCode); });
             }
         }
 

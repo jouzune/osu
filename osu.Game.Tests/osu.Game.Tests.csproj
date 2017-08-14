@@ -96,6 +96,7 @@
   <ItemGroup>
     <Compile Include="Beatmaps\IO\OszArchiveReaderTest.cs" />
     <Compile Include="Beatmaps\IO\ImportBeatmapTest.cs" />
+    <Compile Include="Online\RegisterAPITests.cs" />
     <Compile Include="Resources\Resource.cs" />
     <Compile Include="Beatmaps\Formats\OsuLegacyDecoderTest.cs" />
   </ItemGroup>
